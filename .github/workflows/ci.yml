@@ -1,37 +1,73 @@
 
-name: Carbon Measurement POC - Baseline
+name: Carbon Measurement POC - Baseline and Optimised
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      cache_mode:
+        description: "Select Docker build configuration"
+        required: true
+        type: choice
+        options:
+          - baseline
+          - optimised
 
 jobs:
-  baseline:
-    name: Baseline Docker Build and Test
-
+  build-and-test:
+    name: Docker Build and Test
     runs-on: self-hosted
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and test application
+      - name: Warm up Docker base image
         shell: powershell
         run: |
-          $start = [DateTimeOffset]::UtcNow
-          Write-Host "WORKLOAD_START_UTC=$($start.ToString('o'))"
-
-          docker build -t carbon-measurement-poc:${{ github.run_id }} .
-
+          docker pull python:3.12-slim
           if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
           }
 
-          docker run --rm carbon-measurement-poc:${{ github.run_id }}
-
+      - name: Warm up Docker build cache
+        if: inputs.cache_mode == 'optimised'
+        shell: powershell
+        run: |
+          docker build -t carbon-measurement-poc:warmup .
           if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
+          }
+
+      - name: Run measured workload
+        shell: powershell
+        run: |
+          $mode = "${{ inputs.cache_mode }}"
+          $start = [DateTimeOffset]::UtcNow
+
+          Write-Host "CACHE_MODE=$mode"
+          Write-Host "WORKLOAD_START_UTC=$($start.ToString('o'))"
+
+          for ($i = 1; $i -le 10; $i++) {
+              Write-Host "===== ITERATION $i OF 10 ====="
+
+              $tag = "carbon-measurement-poc:${{ github.run_id }}-$i"
+
+              if ($mode -eq "baseline") {
+                  docker build --no-cache -t $tag .
+              }
+              else {
+                  docker build -t $tag .
+              }
+
+              if ($LASTEXITCODE -ne 0) {
+                  exit $LASTEXITCODE
+              }
+
+              docker run --rm $tag
+
+              if ($LASTEXITCODE -ne 0) {
+                  exit $LASTEXITCODE
+              }
           }
 
           $end = [DateTimeOffset]::UtcNow
