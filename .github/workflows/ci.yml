@@ -1,0 +1,23 @@
+
+name: Carbon Measurement POC - Baseline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  baseline:
+    name: Baseline Docker Build and Test
+
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t carbon-measurement-poc:${{ github.run_id }} .
+
+      - name: Run application test
+        run: docker run --rm carbon-measurement-poc:${{ github.run_id }}
