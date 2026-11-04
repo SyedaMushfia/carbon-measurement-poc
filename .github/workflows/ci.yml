@@ -22,7 +22,7 @@ jobs:
           $start = [DateTimeOffset]::UtcNow
           Write-Host "WORKLOAD_START_UTC=$($start.ToString('o'))"
 
-          docker build --no-cache -t carbon-measurement-poc:${{ github.run_id }} .
+          docker build -t carbon-measurement-poc:${{ github.run_id }} .
 
           if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
