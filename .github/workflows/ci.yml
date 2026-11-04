@@ -16,8 +16,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t carbon-measurement-poc:${{ github.run_id }} .
+      - name: Build and test application
+        shell: pwsh
+        run: |
+          $start = [DateTimeOffset]::UtcNow
+          Write-Host "WORKLOAD_START_UTC=$($start.ToString('o'))"
 
-      - name: Run application test
-        run: docker run --rm carbon-measurement-poc:${{ github.run_id }}
+          docker build -t carbon-measurement-poc:${{ github.run_id }} .
+
+          if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+          }
+
+          docker run --rm carbon-measurement-poc:${{ github.run_id }}
+
+          if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+          }
+
+          $end = [DateTimeOffset]::UtcNow
+          Write-Host "WORKLOAD_END_UTC=$($end.ToString('o'))"
